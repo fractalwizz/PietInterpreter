@@ -28,7 +28,7 @@ our %opt = ();
 #                y,x
 my ($cy, $cx) = (0,0); 
 my ($ny, $nx) = (0,0);
-my ($ty, $tx) = (0,0);
+my ($ty, $tx) = (-1,-1);
 my $count = 0;
 my $bail = 0;
 my $toggle = 0;
@@ -103,16 +103,23 @@ if ($opt{d}) {
 }
 #exit(0);
 
-#if ($opt{t}) { preparetrace($trace); }
+if ($opt{t}) {
+    preparetrace($trace);
+    tracedot($cy, $cx, $trace);
+}
 
 while ($count < 5000) {
+    if ($opt{t} && $ty == -1 && $tx == -1) {
+        ($ty, $tx) = ($cy, $cx);
+    }
+    
     if ($bail > 8) {
         print "\nProgram Terminated: Exit Block\n";
         if ($opt{d}) {
             print DEBUG "Program Terminated: Exit Block\n";
             close (DEBUG);
         }
-        #if ($opt{t}) { endtrace($image); }
+        if ($opt{t}) { endtrace($image); }
         exit(0);
     }
     
@@ -142,16 +149,33 @@ while ($count < 5000) {
     } elsif (white($ny, $nx)) {
         if ($opt{d}) { print DEBUG "White Path Traced\n"; }
         
-        ($cy, $cx) = tracewhite($cy, $cx, $ny, $nx, $trace);
+        if ($opt{t}) {
+            traceline($ty, $tx, $cy, $cx, $trace);
+            tracedot($cy, $cx, $trace);
+            tracedot($ny, $nx, $trace);
+            traceline($cy, $cx, $ny, $nx, $trace);
+            traceop($cy, $cx, $ny, $nx, $trace, "no-op");
+            ($ty, $tx) = (-1, -1);
+        }
+        
+        ($cy, $cx) = tracewhite($cy, $cx, $ny, $nx, $trace, $image);
         $bail = 0;
     } else {
         if ($opt{d}) { print DEBUG "current=($cy,$cx) : next=($ny,$nx)\n"; }
         
+        if ($opt{t}) {
+            traceline($ty, $tx, $cy, $cx, $trace);
+            tracedot($cy, $cx, $trace);
+            tracedot($ny, $nx, $trace);
+            traceline($cy, $cx, $ny, $nx, $trace);
+        }
         @hold = ();
         
         decideop($cy, $cx, $ny, $nx, $trace);
         
         ($cy, $cx) = ($ny, $nx);
+        
+        if ($opt{t}) { ($ty, $tx) = (-1, -1); }
         $bail = 0;
         $toggle = 0;
     }
@@ -164,7 +188,7 @@ while ($count < 5000) {
     }
 }
 
-#if ($opt{t}) { endtrace($image); }
+if ($opt{t}) { endtrace($image); }
 
 print "\nProgram Terminated: Step Escape\n";
 exit(0);
@@ -185,27 +209,27 @@ sub decideop {
                 when (0) {}
                 when (1) {
                     if ($opt{d}) { print DEBUG "doadd()\n"; }
-                    #if ($opt{t}) { traceop($cy, $cx, $ny, $nx, $i, "add"); }
+                    if ($opt{t}) { traceop($cy, $cx, $ny, $nx, $i, "add"); }
                     doadd();
                 }
                 when (2) {
                     if ($opt{d}) { print DEBUG "dodiv()\n"; }
-                    #if ($opt{t}) { traceop($cy, $cx, $ny, $nx, $i, "div"); }
+                    if ($opt{t}) { traceop($cy, $cx, $ny, $nx, $i, "div"); }
                     dodiv();
                 }
                 when (3) {
                     if ($opt{d}) { print DEBUG "dogreat()\n"; }
-                    #if ($opt{t}) { traceop($cy, $cx, $ny, $nx, $i, "great"); }
+                    if ($opt{t}) { traceop($cy, $cx, $ny, $nx, $i, "great"); }
                     dogreat();
                 }
                 when (4) {
                     if ($opt{d}) { print DEBUG "dodup()\n"; }
-                    #if ($opt{t}) { traceop($cy, $cx, $ny, $nx, $i, "dup"); }
+                    if ($opt{t}) { traceop($cy, $cx, $ny, $nx, $i, "dup"); }
                     dodup();
                 }
                 when (5) {
                     if ($opt{d}) { print DEBUG "doin(1)\n"; }
-                    #if ($opt{t}) { traceop($cy, $cx, $ny, $nx, $i, "inC"); }
+                    if ($opt{t}) { traceop($cy, $cx, $ny, $nx, $i, "inC"); }
                     doin(1);
                 }
             }
@@ -215,32 +239,32 @@ sub decideop {
                 when (0) {
                     my $block = blocksize($cy, $cx, $list[$cy][$cx]);
                     if ($opt{d}) { print DEBUG "dopush($block)\n"; }
-                    #if ($opt{t}) { traceop($cy, $cx, $ny, $nx, $i, "push($block)"); }
+                    if ($opt{t}) { traceop($cy, $cx, $ny, $nx, $i, "push($block)"); }
                     dopush($block);
                 }
                 when (1) {
                     if ($opt{d}) { print DEBUG "dosub()\n"; }
-                    #if ($opt{t}) { traceop($cy, $cx, $ny, $nx, $i, "sub"); }
+                    if ($opt{t}) { traceop($cy, $cx, $ny, $nx, $i, "sub"); }
                     dosub();
                 }
                 when (2) {
                     if ($opt{d}) { print DEBUG "domod()\n"; }
-                    #if ($opt{t}) { traceop($cy, $cx, $ny, $nx, $i, "mod"); }
+                    if ($opt{t}) { traceop($cy, $cx, $ny, $nx, $i, "mod"); }
                     domod();
                 }
                 when (3) {
                     if ($opt{d}) { print DEBUG "dopoint()\n"; }
-                    #if ($opt{t}) { traceop($cy, $cx, $ny, $nx, $i, "point"); }
+                    if ($opt{t}) { traceop($cy, $cx, $ny, $nx, $i, "point"); }
                     dopoint();
                 }
                 when (4) {
                     if ($opt{d}) { print DEBUG "doroll()\n"; }
-                    #if ($opt{t}) { traceop($cy, $cx, $ny, $nx, $i, "roll"); }
+                    if ($opt{t}) { traceop($cy, $cx, $ny, $nx, $i, "roll"); }
                     doroll();
                 }
                 when (5) {
                     if ($opt{d}) { print DEBUG "doout(0)\n"; }
-                    #if ($opt{t}) { traceop($cy, $cx, $ny, $nx, $i, "outI"); }
+                    if ($opt{t}) { traceop($cy, $cx, $ny, $nx, $i, "outI"); }
                     doout(0);
                 }
             }
@@ -249,32 +273,32 @@ sub decideop {
             for ($hue) {
                 when (0) {
                     if ($opt{d}) { print DEBUG "dopop()\n"; }
-                    #if ($opt{t}) { traceop($cy, $cx, $ny, $nx, $i, "pop"); }
+                    if ($opt{t}) { traceop($cy, $cx, $ny, $nx, $i, "pop"); }
                     dopop();
                 }
                 when (1) {
                     if ($opt{d}) { print DEBUG "domul()\n"; }
-                    #if ($opt{t}) { traceop($cy, $cx, $ny, $nx, $i, "mul"); }
+                    if ($opt{t}) { traceop($cy, $cx, $ny, $nx, $i, "mul"); }
                     domul();
                 }
                 when (2) {
                     if ($opt{d}) { print DEBUG "donot()\n"; }
-                    #if ($opt{t}) { traceop($cy, $cx, $ny, $nx, $i, "not"); }
+                    if ($opt{t}) { traceop($cy, $cx, $ny, $nx, $i, "not"); }
                     donot();
                 }
                 when (3) {
                     if ($opt{d}) { print DEBUG "doswitch()\n"; }
-                    #if ($opt{t}) { traceop($cy, $cx, $ny, $nx, $i, "switch"); }
+                    if ($opt{t}) { traceop($cy, $cx, $ny, $nx, $i, "switch"); }
                     doswitch();
                 }
                 when (4) {
                     if ($opt{d}) { print DEBUG "doin(0)\n"; }
-                    #if ($opt{t}) { traceop($cy, $cx, $ny, $nx, $i, "inI"); }
+                    if ($opt{t}) { traceop($cy, $cx, $ny, $nx, $i, "inI"); }
                     doin(0);
                 }
                 when (5) {
                     if ($opt{d}) { print DEBUG "doout(1)\n"; }
-                    #if ($opt{t}) { traceop($cy, $cx, $ny, $nx, $i, "outC"); }
+                    if ($opt{t}) { traceop($cy, $cx, $ny, $nx, $i, "outC"); }
                     doout(1);
                 }
             }
@@ -340,18 +364,12 @@ sub differ {
 }
 
 sub tracewhite {
-    my ($cy, $cx, $y, $x, $i) = @_;
+    my ($cy, $cx, $y, $x, $i, $im) = @_;
     my ($tmpy, $tmpx) = ($y, $x);
     my $dir = $dp[$dpval];
     my ($ny, $nx) = (0,0);
     my $out = 0;
     my $bail = 0;
-    
-    #if ($opt{t}) {
-    #    traceline($cy, $cx, $tmpy, $tmpx, $i);
-    #    traceop($cy, $cx, $tmpy, $tmpx, $i, "no-op");
-    #    tracedot($tmpy, $tmpx, $i);
-    #}
     
     while (!$out) {
         $dir = $dp[$dpval];
@@ -365,6 +383,7 @@ sub tracewhite {
                 print DEBUG "Program Terminated: Unescapable White Path\n";
                 close (DEBUG);
             }
+            if ($opt{t}) { endtrace(basename($im));}
             exit(1);
         }
         
@@ -373,9 +392,9 @@ sub tracewhite {
             dopoint(1);
             
             if ($opt{d}) { print DEBUG "shifting direction - obstacle\n"; }
-            #if ($opt{t}) { tracedot($tmpy, $tmpx, $i); }
+            if ($opt{t}) { tracedot($tmpy, $tmpx, $i); }
         } elsif ($list[$ny][$nx] ~~ "FFFFFF") {
-            #if ($opt{t}) { traceline($tmpy, $tmpx, $ny, $nx, $i); }
+            if ($opt{t}) { traceline($tmpy, $tmpx, $ny, $nx, $i); }
             if ($opt{d}) { print DEBUG "keep going\n"; }
             
             ($tmpy, $tmpx) = ($ny, $nx);
@@ -383,11 +402,12 @@ sub tracewhite {
             $out = 1;
             
             if ($opt{d}) { print DEBUG "found what we want\n"; }
-            #if ($opt{t}) {
-            #    tracedot($tmpy, $tmpx, $i);
-            #    traceline($tmpy, $tmpx, $ny, $nx, $i);
-            #    traceop($tmpy, $tmpx, $ny, $nx, $i, "no-op");
-            #}
+            if ($opt{t}) {
+                tracedot($tmpy, $tmpx, $i);
+                tracedot($ny, $nx, $i);
+                traceline($tmpy, $tmpx, $ny, $nx, $i);
+                traceop($tmpy, $tmpx, $ny, $nx, $i, "no-op");
+            }
         }
     }
     
@@ -607,43 +627,47 @@ sub traceline {
 }
 
 sub traceop {
-    #TODO - streamline traceop - center text
-    
-    my ($ya, $xa, $yb, $xb, $i, $op) = @_;
+    my ($ay, $ax, $by, $bx, $i, $op) = @_;
     my $black = $tr->colorResolve(000,000,000);
     
-    my $adjust = 0.7;
-    my $hold = 0.6;
+    my ($adjust, $hold) = centerop($ay, $ax, $by, $bx, $op, $i);
     
-    if ($ya == $yb) {
-        if ($xa > $xb) {
-            if ($i >= 100) { $adjust = 0.8; }
-            if (length $op == 3) { $adjust = 0.9; }
-            if (length $op == 4) { $adjust = 0.85; }
-            
-            $tr->string(gdSmallFont, ($xb + $adjust) * $i, ($ya + $hold) * $i, $op, $black);
+    if ($ay == $by) { 
+        if ($ax > $bx) {
+            $tr->string(gdSmallFont, ($bx + $adjust) * $i, ($ay + $hold) * $i, $op, $black);
         } else {
-            if ($i >= 100) { $adjust = 0.8; }
-            if (length $op == 3) { $adjust = 0.9; }
-            if (length $op == 4) { $adjust = 0.85; }
-            
-            $tr->string(gdSmallFont, ($xa + $adjust) * $i, ($ya + $hold) * $i, $op, $black);
+            $tr->string(gdSmallFont, ($ax + $adjust) * $i, ($ay + $hold) * $i, $op, $black);
+        }
+    } else {
+        if ($ay > $by) {
+            $tr->string(gdSmallFont, ($ax + $hold) * $i, ($ay - $adjust) * $i, $op, $black);
+        } else {
+            $tr->string(gdSmallFont, ($ax + $hold) * $i, ($by - $adjust) * $i, $op, $black);
         }
     }
+}
+
+sub centerop {
+    my ($ay, $ax, $by, $bx, $op, $i) = @_;
+    my ($adjust, $hold) = (0.7, 0.6);
     
-    if ($xa == $xb) {
-        if ($ya > $yb) {
-            $tr->string(gdSmallFont, ($xa + $hold) * $i, ($ya - $adjust) * $i, $op, $black);
-        } else {
-            $adjust = 0.1;
-            $hold = 0.25;
-            if ($i >= 100) { $hold = 0.3; }
-            if (length $op == 3) { $hold = 0.4; }
-            if (length $op == 4) { $hold = 0.35; }
-            
-            $tr->string(gdSmallFont, ($xa + $hold) * $i, ($yb - $adjust) * $i, $op, $black);
-        }
+    if ($ay == $by) {
+        if ($i >= 100) { $adjust = 0.8; }
+        if (length $op == 3) { $adjust = 0.85; }
+        if (length $op == 4) { $adjust = 0.8; }
+        if (length $op == 5) { $adjust = 0.75;}
     }
+    
+    if ($ax == $bx) {
+        $adjust = 0.1;
+        $hold = 0.25;
+        
+        if ($i >= 100) { $hold = 0.3; }
+        if (length $op == 3) { $hold = 0.35; }
+        if (length $op == 4) { $hold = 0.3; }
+    }
+    
+    return ($adjust, $hold);
 }
 
 sub endtrace {
@@ -939,16 +963,12 @@ sub doin {
         if ($opt{d}) { print DEBUG "Error:doin: no input found\n"; }
     } else {
         if ($mode) {
-            if ($val !~ m/[A-z]/) {
-                if ($opt{d}) { print DEBUG "Error:doin: input not character\n"; }
-            } else {
-                if (length $val > 1) {
-                    if ($opt{d}) { print DEBUG "More than one character detected - inputting first character\n"; }
-                }
-                
-                $val = substr($val,0,1);
-                dopush(ord $val);
+            if (length $val > 1) {
+                if ($opt{d}) { print DEBUG "More than one character detected - inputting first character\n"; }
             }
+            
+            $val = substr($val,0,1);
+            dopush(ord $val);
         } else {
             if ($val !~ m/^\-?[0-9]+$/) {
                 if ($opt{d}) { print DEBUG "Error:doin: input not number\n"; }
