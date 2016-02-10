@@ -1,6 +1,10 @@
 ## PietInterpreter
 Interpreter for the Piet language written in Perl<br>
-V0.8.5
+V0.9
+
+### Disclaimer
+Fractalwizz is not the author of any of the example programs.<br>
+They are only provided to test the interpreter's functionality
 
 ### Module Dependencies
 GD<br>
@@ -28,14 +32,16 @@ perl piet.pl -p 100 -v 2 incomp.gif
 Piet Esoteric Programming Language<br>
 Supports GIF and PNG files<br>
 Supports conversion for images with slightly off colors (24-bit)<br>
+New in 0.9: Input buffered for programs requiring longer inputs<br>
 Debug output of Execution Statistics (cmd parameter)<br>
 Image output of trace through program execution (cmd parameter)<br>
 Define Trace Output Codel Size (cmd parameter)<br>
 Define Codel Size of input image (cmd parameter)<br>
 Step Restraint option (cmd parameter)<br>
-Various Option Handling of Invalid Colors (cmd parameter)<br>
+Various Option Handling of Invalid Colors (cmd parameter)
 
 ### TODO
+Test Multiple Character / word strings in program<br>
 Optimizations to avoid unnecessary work (boundary/corners)<br>
 Optimize getcorners (less code/better logic)<br>
 White block infinite path termination (?)<br>

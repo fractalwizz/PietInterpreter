@@ -25,6 +25,7 @@ our @list;
 our @hold;
 our @bound;
 
+our $buffer = "";
 our $dpval = 0;
 our $ccval = 0;
 #                y,x
@@ -107,7 +108,7 @@ if ($opt{d}) { print DEBUG "Colors Extracted: \n"; }
 sanitize($image);
 if ($opt{d}) {
     print DEBUG "Colors Sanitized: \n";
-    print DEBUG Dumper \@list;
+    #print DEBUG Dumper \@list;
 }
 
 if ($opt{t}) {
@@ -1129,7 +1130,7 @@ sub doadd {
     my $one = dopop();
     my $two = dopop();
     
-    if (!$one || !$two) {
+    if (not defined $one || not defined $two) {
         if ($opt{d}) { print DEBUG "Error:doadd: adding with undefined stack elements\n"; }
     } else {
         dopush($one + $two);
@@ -1143,7 +1144,7 @@ sub dosub {
     my $one = dopop();
     my $two = dopop();
     
-    if (!$one || !$two) {
+    if (not defined $one || not defined $two) {
         if ($opt{d}) { print DEBUG "Error:dosub: subtracting with undefined stack elements\n"; }
     } else {
         dopush($two - $one);
@@ -1157,7 +1158,7 @@ sub domul {
     my $one = dopop();
     my $two = dopop();
     
-    if (!$one || !$two) {
+    if (not defined $one || not defined $two) {
         if ($opt{d}) { print DEBUG "Error:domul: multiplying with undefined stack elements\n"; }
     } else {
         dopush($one * $two);
@@ -1185,7 +1186,7 @@ sub domod {
     my $one = dopop();
     my $two = dopop();
     
-    if (!$one || !$two) {
+    if (!$one || not defined $two) {
         if ($opt{d}) { print DEBUG "Error:domod: modulus with invalid stack elements\n"; }
     } else {
         dopush($two % $one);
@@ -1323,24 +1324,57 @@ sub doroll {
  #/
 sub doin {
     my ($mode) = @_;
-    print "?";
-    chomp (my $val = <>);
+    my $val;
     
-    if (not defined $val) {
-        if ($opt{d}) { print DEBUG "Error:doin: no input found\n"; }
-    } else {
+    if ($buffer) {
+        if ($opt{d}) { print DEBUG "Buffer Input Used\n"; }
+        
         if ($mode) {
-            if (length $val > 1) {
-                if ($opt{d}) { print DEBUG "More than one character detected - inputting first character\n"; }
-            }
-            
-            $val = substr($val,0,1);
+            $val = substr($buffer, 0, 1);
             dopush(ord $val);
+            
+            $buffer = substr($buffer, 1);
         } else {
-            if ($val !~ m/^\-?[0-9]+$/) {
-                if ($opt{d}) { print DEBUG "Error:doin: input not number\n"; }
+            $buffer =~ /(\d+).*/;
+            $val = (defined $1) ? $1 : "";
+            
+            if ($val ~~ "") {
+                if ($opt{d}) {
+                    print DEBUG "Error:doin: input not number\n";
+                    print DEBUG "Found return character: new input\n";
+                }
+                
+                $buffer = "";
+                doin($mode);
             } else {
-                dopush(int($val));
+                dopush(int $val);
+                $buffer = substr($buffer, length $val);
+            }
+        }
+    } else {
+        print "?";
+        $val = <>;
+        
+        if (not defined $val) {
+            if ($opt{d}) { print DEBUG "Error:doin: no input found\n"; }
+        } else {
+            $buffer = $val;
+            
+            if ($mode) {
+                $val = substr($buffer, 0, 1);
+                dopush(ord $val);
+                
+                $buffer = substr($buffer, 1);
+            } else {
+                $buffer =~ /(\d+).*/;
+                $val = (defined $1) ? $1 : "";
+                
+                if ($val ~~ "") {
+                    if ($opt{d}) { print DEBUG "Error:doin: input not number\n"; }
+                } else {
+                    dopush(int $val);
+                    $buffer = substr($buffer, length $val);
+                }
             }
         }
     }
