@@ -1,6 +1,6 @@
 ## PietInterpreter
 Interpreter for the Piet language written in Perl<br>
-V0.9
+V0.93
 
 ### Disclaimer
 Fractalwizz is not the author of any of the example programs.<br>
@@ -41,7 +41,6 @@ Step Restraint option (cmd parameter)<br>
 Various Option Handling of Invalid Colors (cmd parameter)
 
 ### TODO
-Test Multiple Character / word strings in program<br>
 Optimizations to avoid unnecessary work (boundary/corners)<br>
 Optimize getcorners (less code/better logic)<br>
 White block infinite path termination (?)<br>

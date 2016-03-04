@@ -140,8 +140,8 @@ while ($count) {
     $dir = $dp[$dpval];
     
     if ($opt{d}) {
-        printf DEBUG "Step #%d\n", $step + 1;
-        print DEBUG "currentdp=($dir), currentcc=($ccval)\n";
+        printf DEBUG "\nStep #%d\n", $step + 1;
+        print DEBUG "dp=($dir), cc=($ccval)\n";
     }
     
     # codel to move from
@@ -175,7 +175,7 @@ while ($count) {
         ($cy, $cx) = tracewhite($ny, $nx, $trace, $image);
         $bail = 0;
     } else { # codel of interest - do a thing
-        if ($opt{d}) { print DEBUG "current=($cy,$cx) : next=($ny,$nx)\n"; }
+        if ($opt{d}) { print DEBUG "($cy,$cx)=>($ny,$nx)\n"; }
         if ($opt{t}) {
             traceline($ty, $tx, $cy, $cx, $trace);
             tracedot($cy, $cx, $trace);
@@ -191,15 +191,13 @@ while ($count) {
         $toggle = 0;
         
         if ($opt{t}) { ($ty, $tx) = (-1, -1); }
+        
+        if ($opt{d}) { printStack(); }
     }
     
     $step++;
     
     if ($opt{p}) { $count--; }
-    if ($opt{d}) {
-        print DEBUG "Current Stack Contents: \n";
-        print DEBUG Dumper \@stack;
-    }
 }
 
 if ($opt{t}) { endtrace($image); }
@@ -324,10 +322,7 @@ sub getedge {
     getboundary($y, $x, $color);
     getcorners();
     
-    if ($opt{d}) {
-        print DEBUG "Corners Determined: \n";
-        print DEBUG Dumper \%codels;
-    }
+    if ($opt{d}) { printCorners(); }
     
     my ($outy, $outx) = ($codels{$dir}[$ccval] =~ /^(\d+)\,(\d+)$/);
     
@@ -807,6 +802,23 @@ sub blocksize {
     return $val;
 }
 
+sub printStack {
+    printf DEBUG "Stack: (%d values): ", scalar @stack;
+    print DEBUG "[ ";
+        for my $i (reverse @stack) { print DEBUG "$i "; }
+    print DEBUG "]\n";
+}
+
+sub printCorners {
+    print DEBUG "Corners:\n";
+    for my $i (keys %codels) {
+        print DEBUG " \'$i\'=>( ";
+            for my $z (@{$codels{$i}}) { print DEBUG "\'$z\' "; }
+        print DEBUG ")\n";
+    }
+    print DEBUG "\n";
+}
+
 #----------------------------
 #-----------Trace------------
 #----------------------------
@@ -1172,7 +1184,7 @@ sub dodiv {
     my $one = dopop();
     my $two = dopop();
     
-    if (!$one || !$two) {
+    if (!$one || not defined $two) {
         if ($opt{d}) { print DEBUG "Error:dodiv: dividing with invalid stack elements\n"; }
     } else {
         dopush(int($two / $one));
