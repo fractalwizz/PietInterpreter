@@ -174,6 +174,7 @@ while ($count) {
         
         ($cy, $cx) = tracewhite($ny, $nx, $trace, $image);
         $bail = 0;
+        %codels = ();
     } else { # codel of interest - do a thing
         if ($opt{d}) { print DEBUG "($cy,$cx)=>($ny,$nx)\n"; }
         if ($opt{t}) {
@@ -189,6 +190,7 @@ while ($count) {
         ($cy, $cx) = ($ny, $nx);
         $bail = 0;
         $toggle = 0;
+        %codels = ();
         
         if ($opt{t}) { ($ty, $tx) = (-1, -1); }
         
@@ -320,13 +322,9 @@ sub getedge {
     my $dir = $dp[$dpval];
     
     getboundary($y, $x, $color);
-    getcorners();
+    if (!%codels) { getcorners(); }
     
-    if ($opt{d}) { printCorners(); }
-    
-    my ($outy, $outx) = ($codels{$dir}[$ccval] =~ /^(\d+)\,(\d+)$/);
-    
-    return ($outy, $outx);
+    return @{$codels{$dir}[$ccval]};
 }
 
 ##\
@@ -345,7 +343,7 @@ sub getboundary {
     
     $pix = sprintf("%d,%d", $y, $x);
     
-    unless (surrounded($y, $x, $color)) { push(@bound, $pix); }
+    unless (surrounded($y, $x, $color)) { push(@bound, [$y, $x]); }
     push(@hold, $pix);
     
     # right
@@ -379,92 +377,29 @@ sub getboundary {
 
 ##\
  # Populates codel hash with left/right corners of codel block
+ #
+ # Credit to Marc Majcher for his corner determine algorithm
+ # Did it the hard way, without ever thinking of using sort...
+ # http://cpansearch.perl.org/src/MAJCHER/Piet-Interpreter-0.03/Interpreter.pm
  #/
 sub getcorners {
-    my $nimx = 9999;
-    my $nimy = 9999;
-    my $xamx = 0;
-    my $xamy = 0;
-    my $min = 9999;
-    my $max = 0;
-    my @tmpx;
-    my @tmpy;
-    my @right;
-    my @down;
-    my @left;
-    my @up;
+    my @srted = sort {$$b[1] <=> $$a[1]} @bound;
+    my @right = sort {$$a[0] <=> $$b[0]} grep {$$_[1] == $srted[0][1]} @srted;
+    @{$codels{'r'}} = ($right[0], $right[-1]);
 
-    # edge collection from array getboundary
-    for my $item (@bound) {
-        @tmpx = ($item =~ /\,(\d*)$/);
-        @tmpy = ($item =~ /(\d*)\,/);
-        $nimx = $tmpx[0]  < $nimx ? $tmpx[0] : $nimx;
-        $nimy = $tmpy[0]  < $nimy ? $tmpy[0] : $nimy;
-        $xamx = $tmpx[0] >= $xamx ? $tmpx[0] : $xamx;
-        $xamy = $tmpy[0] >= $xamy ? $tmpy[0] : $xamy;
-    }
+    @srted   = sort {$$b[0] <=> $$a[0]} @bound;
+    my @down = sort {$$a[1] <=> $$b[1]} grep {$$_[0] == $srted[0][0]} @srted;
+    @{$codels{'d'}} = ($down[-1], $down[0]);
+
+    @srted   = sort {$$a[1] <=> $$b[1]} @bound;
+    my @left = sort {$$a[0] <=> $$b[0]} grep {$$_[1] == $srted[0][1]} @srted;
+    @{$codels{'l'}} = ($left[-1], $left[0]);
+
+    @srted = sort {$$a[0] <=> $$b[0]} @bound;
+    my @up = sort {$$a[1] <=> $$b[1]} grep {$$_[0] == $srted[0][0]} @srted;
+    @{$codels{'u'}} = ($up[0], $up[-1]);
     
-    # filter to subarrays
-    for my $item (@bound) {
-        if ($item =~ /\,\Q$xamx/)    { push(@right, $item); }
-        if ($item =~ /^\Q$xamy\E\,/) { push(@down, $item); }
-        if ($item =~ /\,\Q$nimx\E$/) { push(@left, $item); }
-        if ($item =~ /^\Q$nimy\E\,/) { push(@up, $item); }
-    }
-    
-    # collect codel 'corners' in hash
-    # right
-    for my $item (@right) {
-        @tmpy = ($item =~ /(\d*)\,/);
-        $min = $tmpy[0]  < $min ? $tmpy[0] : $min;
-        $max = $tmpy[0] >= $max ? $tmpy[0] : $max;
-    }
-    for my $item (@right) {
-        if ($item ~~ "$min,$xamx") { $codels{'r'}[0] = $item; }
-        if ($item ~~ "$max,$xamx") { $codels{'r'}[1] = $item; }
-    }
-    
-    $min = 9999;
-    $max = 0;
-    
-    # down
-    for my $item (@down) {
-        @tmpx = ($item =~ /\,(\d*)$/);
-        $min = $tmpx[0]  < $min ? $tmpx[0] : $min;
-        $max = $tmpx[0] >= $max ? $tmpx[0] : $max;
-    }
-    for my $item (@down) {
-        if ($item ~~ "$xamy,$min") { $codels{'d'}[1] = $item; }
-        if ($item ~~ "$xamy,$max") { $codels{'d'}[0] = $item; }
-    }
-    
-    $min = 9999;
-    $max = 0;
-    
-    # left
-    for my $item (@left) {
-        @tmpy = ($item =~ /(\d*)\,/);
-        $min = $tmpy[0]  < $min ? $tmpy[0] : $min;
-        $max = $tmpy[0] >= $max ? $tmpy[0] : $max;
-    }
-    for my $item (@left) {
-        if ($item ~~ "$min,$nimx") { $codels{'l'}[1] = $item; }
-        if ($item ~~ "$max,$nimx") { $codels{'l'}[0] = $item; }
-    }
-    
-    $min = 9999;
-    $max = 0;
-    
-    # up
-    for my $item (@up) {
-        @tmpx = ($item =~ /\,(\d*)$/);
-        $min = $tmpx[0]  < $min ? $tmpx[0] : $min;
-        $max = $tmpx[0] >= $max ? $tmpx[0] : $max;
-    }
-    for my $item (@up) {
-        if ($item ~~ "$nimy,$min") { $codels{'u'}[0] = $item; }
-        if ($item ~~ "$nimy,$max") { $codels{'u'}[1] = $item; }
-    }
+    if ($opt{d}) { printCorners(); }
 }
 
 ##\
@@ -813,7 +748,7 @@ sub printCorners {
     print DEBUG "Corners:\n";
     for my $i (keys %codels) {
         print DEBUG " \'$i\'=>( ";
-            for my $z (@{$codels{$i}}) { print DEBUG "\'$z\' "; }
+            for my $z (@{$codels{$i}}) { printf DEBUG "(%d,%d) ", @{$z}[0], @{$z}[1]; }
         print DEBUG ")\n";
     }
     print DEBUG "\n";

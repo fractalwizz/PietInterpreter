@@ -1,6 +1,6 @@
 ## PietInterpreter
 Interpreter for the Piet language written in Perl<br>
-V0.93
+V0.95
 
 ### Disclaimer
 Fractalwizz is not the author of any of the example programs.<br>
@@ -38,11 +38,10 @@ Image output of trace through program execution (cmd parameter)<br>
 Define Trace Output Codel Size (cmd parameter)<br>
 Define Codel Size of input image (cmd parameter)<br>
 Step Restraint option (cmd parameter)<br>
-Various Option Handling of Invalid Colors (cmd parameter)
+Various Option Handling of Invalid Colors (cmd parameter)<br>
+Corner determination optimization: Credit: Mark Majcher
 
 ### TODO
-Optimizations to avoid unnecessary work (boundary/corners)<br>
-Optimize getcorners (less code/better logic)<br>
 White block infinite path termination (?)<br>
 More image formats (?)
 
