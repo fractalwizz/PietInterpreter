@@ -145,7 +145,7 @@ while ($count) {
     }
     
     # codel to move from
-    ($cy, $cx) = getedge($cy, $cx, $list[$cy][$cx]);
+    unless (white($cy, $cx)) { ($cy, $cx) = getedge($cy, $cx, $list[$cy][$cx]); }
     
     # codel to move to
     ($ny, $nx) = getnext($dir, $cy, $cx);
@@ -174,6 +174,7 @@ while ($count) {
         
         ($cy, $cx) = tracewhite($ny, $nx, $trace, $image);
         $bail = 0;
+        $toggle = 0;
         %codels = ();
     } else { # codel of interest - do a thing
         if ($opt{d}) { print DEBUG "($cy,$cx)=>($ny,$nx)\n"; }
