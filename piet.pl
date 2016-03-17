@@ -22,6 +22,7 @@ our @stack = ();
 our %codels = ();
 our %opt = ();
 our @list;
+our @blocksize;
 our @hold;
 our @bound;
 
@@ -173,9 +174,6 @@ while ($count) {
         }
         
         ($cy, $cx) = tracewhite($ny, $nx, $trace, $image);
-        $bail = 0;
-        $toggle = 0;
-        %codels = ();
     } else { # codel of interest - do a thing
         if ($opt{d}) { print DEBUG "($cy,$cx)=>($ny,$nx)\n"; }
         if ($opt{t}) {
@@ -189,14 +187,14 @@ while ($count) {
         decideop($cy, $cx, $ny, $nx, $trace);
         
         ($cy, $cx) = ($ny, $nx);
-        $bail = 0;
-        $toggle = 0;
-        %codels = ();
         
         if ($opt{t}) { ($ty, $tx) = (-1, -1); }
-        
         if ($opt{d}) { printStack(); }
     }
+    
+    $bail = 0;
+    $toggle = 0;
+    %codels = ();
     
     $step++;
     
@@ -263,6 +261,7 @@ sub extractcolors {
     for (my $x = 0; $x < $w; $x += $size) {
         for (my $y = 0; $y < $h; $y += $size) {
             $list[$y / $size][$x / $size] = rgbtohex($im->rgb($im->getPixel($x,$y)));
+            $blocksize[$y / $size][$x / $size] = 0;
         }
     }
 }
@@ -322,8 +321,10 @@ sub getedge {
     my ($y, $x, $color) = @_;
     my $dir = $dp[$dpval];
     
-    getboundary($y, $x, $color);
-    if (!%codels) { getcorners(); }
+    if (!%codels) {
+        getboundary($y, $x, $color);
+        getcorners();
+    }
     
     return @{$codels{$dir}[$ccval]};
 }
@@ -551,7 +552,7 @@ sub decideop {
         when (1) {
             for ($hue) {
                 # push
-                when (0) {
+                when (0) { 
                     my $block = blocksize($cy, $cx, $list[$cy][$cx]);
                     if ($opt{d}) { print DEBUG "dopush($block)\n"; }
                     if ($opt{t}) { traceop($cy, $cx, $ny, $nx, $i, "push($block)"); }
@@ -685,7 +686,9 @@ sub differ {
 }
 
 ##\
- # Recursively computes size of block that includes codel at coordinates
+ # If blocksize is precalculated, return associated value
+ # Otherwise call blockhelper to fetch list of codels within block
+ # Set precalculated values to new value
  #
  # param: $y:     y coordinate of codel
  # param: $x:     x coordinate of codel
@@ -694,48 +697,71 @@ sub differ {
  # return: size of codel block
  #/
 sub blocksize {
+    my ($y, $x, $color) = @_;
+	
+    if ($blocksize[$y][$x]) {
+        if ($opt{d}) { print DEBUG "Blocksize:Saved: $blocksize[$y][$x]\n"; }
+        return $blocksize[$y][$x];
+    }
+	
+    my @result = blockhelper($y, $x, $color);
+    my $out = scalar @result;
+	
+    for my $y (@result) { $blocksize[@{$y}[0]][@{$y}[1]] = $out; }
+	
+    if ($opt{d}) { print DEBUG "Blocksize:Calculated: $out\n"; }
+    return $out;
+}
+
+##\
+ # Recursively builds list of codels within block that includes codel at coordinates
+ #
+ # param: $y:     y coordinate of codel
+ # param: $x:     x coordinate of codel
+ # param: $color: color of codel
+ #
+ # return: list of codels within block
+ #/
+sub blockhelper {
     no warnings 'recursion';
     
     my ($y, $x, $color) = @_;
     my $temp;
-    my $val = 1;
+	my @out;
     
     my $pix = sprintf("%d,%d", $y, $x);
     push(@hold, $pix);
+    push(@out, [$y,$x]);
     
     # right
     $pix = sprintf("%d,%d", $y, $x + 1);
     if ($x + 1 < @{$list[0]} && !grep {$_ eq ($pix)} @hold) {
         $temp = $list[$y][$x + 1];
-        
-        if ($temp ~~ $color) { $val += blocksize($y, $x + 1, $color); }
+        if ($temp ~~ $color) { push(@out, blockhelper($y, $x + 1, $color)); }
     }
     
     # down
     $pix = sprintf("%d,%d", $y + 1, $x);
     if ($y + 1 < @list && !grep {$_ eq ($pix)} @hold) {
         $temp = $list[$y + 1][$x];
-        
-        if ($temp ~~ $color) { $val += blocksize($y + 1, $x, $color); }
+        if ($temp ~~ $color) { push(@out, blockhelper($y + 1, $x, $color)); }
     }
     
     # left
     $pix = sprintf("%d,%d", $y, $x - 1);
     if ($x - 1 >= 0 && !grep {$_ eq ($pix)} @hold) {
         $temp = $list[$y][$x - 1];
-        
-        if ($temp ~~ $color) { $val += blocksize($y, $x - 1, $color); }
+        if ($temp ~~ $color) { push(@out, blockhelper($y, $x - 1, $color)); }
     }
     
     # up
     $pix = sprintf("%d,%d", $y - 1, $x);
     if ($y - 1 >= 0 && !grep {$_ eq ($pix)} @hold) {
         $temp = $list[$y - 1][$x];
-        
-        if ($temp ~~ $color) { $val += blocksize($y - 1, $x, $color); }
+        if ($temp ~~ $color) { push(@out, blockhelper($y - 1, $x, $color)); }
     }
     
-    return $val;
+    return @out;
 }
 
 sub printStack {
