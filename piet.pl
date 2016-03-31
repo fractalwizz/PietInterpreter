@@ -4,6 +4,7 @@ use GD;
 use Data::Dumper;
 use Getopt::Std;
 use File::Basename;
+no warnings 'experimental::smartmatch';
 
 # color palette
 our %colors = (
@@ -42,10 +43,13 @@ my $im;
 our $tr;
 
 # cmd parameters
-getopts('dts:c:p:v:', \%opt);
+getopts('dts:c:p:v:r', \%opt);
 
 my $trace = $opt{s} || 60;
 my $count = $opt{p} || 1;
+
+my @subrout;
+if ($opt{r}) { for (0..14) { $subrout[$_] = 0; } }
 
 my $image = shift;
 
@@ -62,15 +66,17 @@ if (!$image) {
     print "  -s [int]   Trace Image Codel Size (default: 60)\n";
     print "  -c [int]   Codel Size of Image input (default: determined)\n";
     print "  -p [int]   Step Restraint (default: infinite)\n";
-    print "  -v [int]   Invalid Color handling (1: terminate) (2: treat as black) (default: treat as white)\n\n";
+    print "  -v [int]   Invalid Color handling (1: terminate) (2: treat as black) (default: treat as white)\n";
+    print "  -r         Piet-to-Perl Translation (BETA)\n\n";
     print "OPERANDS\n";
     print "  imagefile  path to input image file\n\n";
     print "FILES\n";
     print "  Output files (-d,-t,...) written to current directory\n";
     print "  Debug (-d) file name is imagefile-debug.out\n";
-    print "  Trace (-t) file name is imagefile-trace.png\n\n";
+    print "  Trace (-t) file name is imagefile-trace.png\n";
+    print "  Perl  (-r) file name is imagefile-perl.pl\n\n";
     print "EXAMPLES\n";
-    print "  $prog ./Examples/hi.png\n";
+    print "  $prog -r ./Examples/hi.png\n";
     print "  $prog -d -t helloworld.gif\n";
     print "  $prog -t -c 3 -p 15 fizzbuzz.png\n";
     
@@ -93,6 +99,14 @@ if ($opt{d}) {
     
     open (DEBUG, '>', $fil) or die ("Can't create $fil: $!\n");
     print DEBUG "DEBUG enabled\n";
+}
+
+if ($opt{r}) {
+    my $fil = $image;
+    $fil =~ /(\S+)\./;
+    $fil = $1 . "-perl.pl";
+    
+    open (PERL, '>', $fil) or die ("Can't create $fil: $!\n");
 }
 
 my ($w, $h) = $im->getBounds();
@@ -132,6 +146,7 @@ while ($count) {
             close (DEBUG);
         }
         if ($opt{t}) { endtrace($image); }
+        if ($opt{r}) { finishTrans(); }
         
         exit(0);
     }
@@ -201,7 +216,13 @@ while ($count) {
     if ($opt{p}) { $count--; }
 }
 
+if ($opt{d}) {
+    print DEBUG "Program Terminated: Exit Block\n";
+    close (DEBUG);
+}
+
 if ($opt{t}) { endtrace($image); }
+if ($opt{r}) { finishTrans(); }
 
 print "\nProgram Terminated: Step Escape\n";
 exit(0);
@@ -292,6 +313,7 @@ sub sanitize {
                         close (DEBUG);
                     }
                     if ($opt{t}) { endtrace(basename($im));}
+                    if ($opt{r}) { finishTrans(); }
                     
                     exit(1);
 				} elsif ($opt{v} == 2) {
@@ -436,6 +458,7 @@ sub tracewhite {
                 close (DEBUG);
             }
             if ($opt{t}) { endtrace(basename($im));}
+            if ($opt{r}) { finishTrans(); }
             exit(1);
         }
         
@@ -517,6 +540,10 @@ sub decideop {
                 when (1) {
                     if ($opt{d}) { print DEBUG "doadd()\n"; }
                     if ($opt{t}) { traceop($cy, $cx, $ny, $nx, $i, "add"); }
+                    if ($opt{r}) {
+                        print PERL "doadd();\n";
+                        $subrout[0] = 1;
+                    }
                     doadd();
                 }
                 
@@ -524,6 +551,10 @@ sub decideop {
                 when (2) {
                     if ($opt{d}) { print DEBUG "dodiv()\n"; }
                     if ($opt{t}) { traceop($cy, $cx, $ny, $nx, $i, "div"); }
+                    if ($opt{r}) {
+                        print PERL "dodiv();\n";
+                        $subrout[1] = 1;
+                    }
                     dodiv();
                 }
                 
@@ -531,6 +562,10 @@ sub decideop {
                 when (3) {
                     if ($opt{d}) { print DEBUG "dogreat()\n"; }
                     if ($opt{t}) { traceop($cy, $cx, $ny, $nx, $i, "great"); }
+                    if ($opt{r}) {
+                        print PERL "dogreat();\n";
+                        $subrout[2] = 1;
+                    }
                     dogreat();
                 }
                 
@@ -538,6 +573,10 @@ sub decideop {
                 when (4) {
                     if ($opt{d}) { print DEBUG "dodup()\n"; }
                     if ($opt{t}) { traceop($cy, $cx, $ny, $nx, $i, "dup"); }
+                    if ($opt{r}) {
+                        print PERL "dodup();\n";
+                        $subrout[3] = 1;
+                    }
                     dodup();
                 }
                 
@@ -556,6 +595,10 @@ sub decideop {
                     my $block = blocksize($cy, $cx, $list[$cy][$cx]);
                     if ($opt{d}) { print DEBUG "dopush($block)\n"; }
                     if ($opt{t}) { traceop($cy, $cx, $ny, $nx, $i, "push($block)"); }
+                    if ($opt{r}) {
+                        print PERL "dopush($block);\n";
+                        $subrout[5] = 1;
+                    }
                     dopush($block);
                 }
                 
@@ -563,6 +606,10 @@ sub decideop {
                 when (1) {
                     if ($opt{d}) { print DEBUG "dosub()\n"; }
                     if ($opt{t}) { traceop($cy, $cx, $ny, $nx, $i, "sub"); }
+                    if ($opt{r}) {
+                        print PERL "dosub();\n";
+                        $subrout[6] = 1;
+                    }
                     dosub();
                 }
                 
@@ -570,6 +617,10 @@ sub decideop {
                 when (2) {
                     if ($opt{d}) { print DEBUG "domod()\n"; }
                     if ($opt{t}) { traceop($cy, $cx, $ny, $nx, $i, "mod"); }
+                    if ($opt{r}) {
+                        print PERL "domod();\n";
+                        $subrout[7] = 1;
+                    }
                     domod();
                 }
                 
@@ -577,6 +628,10 @@ sub decideop {
                 when (3) {
                     if ($opt{d}) { print DEBUG "dopoint()\n"; }
                     if ($opt{t}) { traceop($cy, $cx, $ny, $nx, $i, "point"); }
+                    if ($opt{r}) {
+                        print PERL "dopop();\n";
+                        $subrout[8] = 1;
+                    }
                     dopoint();
                 }
                 
@@ -584,6 +639,10 @@ sub decideop {
                 when (4) {
                     if ($opt{d}) { print DEBUG "doroll()\n"; }
                     if ($opt{t}) { traceop($cy, $cx, $ny, $nx, $i, "roll"); }
+                    if ($opt{r}) {
+                        print PERL "doroll();\n";
+                        $subrout[9] = 1;
+                    }
                     doroll();
                 }
                 
@@ -591,6 +650,10 @@ sub decideop {
                 when (5) {
                     if ($opt{d}) { print DEBUG "doout(0)\n"; }
                     if ($opt{t}) { traceop($cy, $cx, $ny, $nx, $i, "outI"); }
+                    if ($opt{r}) {
+                        print PERL "dooutI();\n";
+                        $subrout[10] = 1;
+                    }
                     doout(0);
                 }
             }
@@ -601,6 +664,10 @@ sub decideop {
                 when (0) {
                     if ($opt{d}) { print DEBUG "dopop()\n"; }
                     if ($opt{t}) { traceop($cy, $cx, $ny, $nx, $i, "pop"); }
+                    if ($opt{r}) {
+                        print PERL "dopop();\n";
+                        $subrout[8] = 1;
+                    }
                     dopop();
                 }
                 
@@ -608,6 +675,10 @@ sub decideop {
                 when (1) {
                     if ($opt{d}) { print DEBUG "domul()\n"; }
                     if ($opt{t}) { traceop($cy, $cx, $ny, $nx, $i, "mul"); }
+                    if ($opt{r}) {
+                        print PERL "domul();\n";
+                        $subrout[11] = 1;
+                    }
                     domul();
                 }
                 
@@ -615,6 +686,10 @@ sub decideop {
                 when (2) {
                     if ($opt{d}) { print DEBUG "donot()\n"; }
                     if ($opt{t}) { traceop($cy, $cx, $ny, $nx, $i, "not"); }
+                    if ($opt{r}) {
+                        print PERL "donot();\n";
+                        $subrout[12] = 1;
+                    }
                     donot();
                 }
                 
@@ -622,6 +697,10 @@ sub decideop {
                 when (3) {
                     if ($opt{d}) { print DEBUG "doswitch()\n"; }
                     if ($opt{t}) { traceop($cy, $cx, $ny, $nx, $i, "switch"); }
+                    if ($opt{r}) {
+                        print PERL "dopop();\n";
+                        $subrout[8] = 1;
+                    }
                     doswitch();
                 }
                 
@@ -636,6 +715,10 @@ sub decideop {
                 when (5) {
                     if ($opt{d}) { print DEBUG "doout(1)\n"; }
                     if ($opt{t}) { traceop($cy, $cx, $ny, $nx, $i, "outC"); }
+                    if ($opt{r}) {
+                        print PERL "dooutC();\n";
+                        $subrout[14] = 1;
+                    }
                     doout(1);
                 }
             }
@@ -1075,6 +1158,125 @@ sub outimage {
     if ($opt{d}) { print DEBUG "$image created\n"; }
 }
 
+sub finishTrans {
+    my @sbus = (
+        "sub doadd {\n" .
+        "    \$one = pop(\@stack);\n" .
+        "    \$two = pop(\@stack);\n" .
+        "    unless (not defined \$one || not defined \$two) { push(\@stack, \$one + \$two); }\n" .
+        "};\n",
+        "sub dodiv {\n" .
+        "    \$one = pop(\@stack);\n" .
+        "    \$two = pop(\@stack);\n" .
+        "    unless (!\$one || not defined \$two) { push(\@stack, int(\$two / \$one)); }\n" .
+        "}\n",
+        "sub dogreat {\n" .
+        "    \$one = pop(\@stack);\n" .
+        "    \$two = pop(\@stack);\n" .
+        "    \$res = (defined \$one && defined \$two && \$two > \$one) ? 1 : 0;\n" .
+        "    push(\@stack, \$res);\n" .
+        "}\n",
+        "sub dodup {\n" .
+        "    \$one = pop(\@stack);\n" .
+        "    if (defined \$one) {\n" .
+        "        push(\@stack, \$one);\n" .
+        "        push(\@stack, \$one);\n" .
+        "    }\n" .
+        "}\n",
+        "sub doinC {\n" .
+        "    \$input = shift;\n" .
+        "    if (\$buffer) {\n" .
+        "        \$val = substr(\$buffer, 0, 1);\n" .
+        "        push(\@stack, ord \$val);\n" .
+        "        \$buffer = substr(\$buffer, 1);\n" .
+        "    } else {\n" .
+        "        \$val = \$input;\n" .
+        "        unless (not defined \$val) {\n" .
+        "            \$buffer = \$val;\n" .
+        "            \$val = substr(\$buffer, 0, 1);\n" .
+        "            push(\@stack, ord \$val);\n" .
+        "            \$buffer = substr(\$buffer, 1);\n" .
+        "        }\n" .
+        "    }\n" .
+        "}\n",
+        "sub dopush {\n" .
+        "    \$val = shift;\n" .
+        "    push(\@stack, \$val);\n" .
+        "}\n",
+        "sub dosub {\n" .
+        "    \$one = pop(\@stack);\n" .
+        "    \$two = pop(\@stack);\n" .
+        "    unless (not defined \$one || not defined \$two) { push(\@stack, \$two - \$one); }\n" .
+        "};\n",
+        "sub domod {\n" .
+        "    \$one = pop(\@stack);\n" .
+        "    \$two = pop(\@stack);\n" .
+        "    unless (!\$one || not defined \$two) { push(\@stack, \$two % \$one); }\n" .
+        "}\n",
+        "sub dopop { pop(\@stack); }\n",
+        "sub doroll {\n" .
+        "    \$i = pop(\@stack);\n" .
+        "    \$depth = pop(\@stack);\n" .
+        "    if (\$i && \$depth) {\n" .
+        "        unless (\@stack - \$depth < 0) {\n" .
+        "            \$start = \@stack - \$depth;\n" .
+        "            \@held = \@stack[\$start .. \@stack - 1];\n" .
+        "            if (\$i < 0) {\n" .
+        "                for (0 .. abs(\$i) - 1) { push(\@held, shift (\@held)); }\n" .
+        "            } else {\n" .
+        "                for (0 .. \$i - 1) { unshift (\@held, pop(\@held)); }\n" .
+        "            }\n" .
+        "            splice (\@stack, \$start, \@held, \@held);\n" .
+        "        }\n" .
+        "    }\n" .
+        "}\n",
+        "sub dooutI {\n" .
+        "    \$val = pop(\@stack);\n" .
+        "    unless (not defined \$val) { print \$val; }\n" .
+        "}\n",
+        "sub domul {\n" .
+        "    \$one = pop(\@stack);\n" .
+        "    \$two = pop(\@stack);\n" .
+        "    unless (not defined \$one || not defined \$two) { push(\@stack, \$one * \$two); }\n" .
+        "};\n",
+        "sub donot {\n" .
+        "    \$one = pop(\@stack);\n" .
+        "    \$res = (defined \$one && \$one == 0) ? 1 : 0;\n" .
+        "    push(\@stack, \$res);\n" .
+        "}\n",
+        "sub doinI {\n" .
+        "    \$input = shift;\n" .
+        "    if (\$buffer) {\n" .
+        "        \$buffer =~ /(\\d+).*/;\n" .
+        "        \$val = (defined \$1) ? \$1 : \"\";\n" .
+        "        unless (\$val ~~ \"\") {\n" .
+        "            push(\@stack, int(\$val));\n" .
+        "            \$buffer = substr(\$buffer, length \$val);\n" .
+        "        }\n" .
+        "    } else {\n" .
+        "        \$val = \$input;\n" .
+        "        chomp(\$val);\n" .
+        "        unless (not defined \$val) {\n" .
+        "            \$buffer = \$val;\n" .
+        "            \$buffer =~ /(\\d+).*/;\n" .
+        "            \$val = (defined \$1) ? \$1 : \"\";\n" .
+        "            unless (\$val ~~ \"\") {\n" .
+        "                push(\@stack, int(\$val));\n" .
+        "                \$buffer = substr(\$buffer, length \$val);\n" .
+        "            }\n" .
+        "        }\n" .
+        "    }\n" .
+        "}\n",
+        "sub dooutC {\n" .
+        "    \$val = pop(\@stack);\n" .
+        "    unless (not defined \$val) { print chr \$val; }\n" .
+        "}\n",
+    );
+
+    for (0 .. 14) { if ($subrout[$_]) { print PERL $sbus[$_]; } }
+    close (PERL);
+}
+
 #----------------------------
 #------Stack Operations------
 #----------------------------
@@ -1304,11 +1506,21 @@ sub doin {
         if ($opt{d}) { print DEBUG "Buffer Input Used\n"; }
         
         if ($mode) {
+            if ($opt{r}) {
+                print PERL "doinC();\n";
+                $subrout[4] = 1;
+            }
+            
             $val = substr($buffer, 0, 1);
             dopush(ord $val);
             
             $buffer = substr($buffer, 1);
         } else {
+            if ($opt{r}) {
+                print PERL "doinI();\n";
+                $subrout[13] = 1;
+            }
+            
             $buffer =~ /(\d+).*/;
             $val = (defined $1) ? $1 : "";
             
@@ -1335,11 +1547,21 @@ sub doin {
             $buffer = $val;
             
             if ($mode) {
+                if ($opt{r}) {
+                    print PERL "doinC(\"$val\");\n";
+                    $subrout[4] = 1;
+                }
+                
                 $val = substr($buffer, 0, 1);
                 dopush(ord $val);
                 
                 $buffer = substr($buffer, 1);
             } else {
+                if ($opt{r}) {
+                    print PERL "doinI(\"$val\");\n";
+                    $subrout[13] = 1;
+                }
+                
                 $buffer =~ /(\d+).*/;
                 $val = (defined $1) ? $1 : "";
                 

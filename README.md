@@ -1,6 +1,6 @@
 ## PietInterpreter
 Interpreter for the Piet language written in Perl<br>
-V0.95
+V0.97a
 
 ### Disclaimer
 Fractalwizz is not the author of any of the example programs.<br>
@@ -21,10 +21,11 @@ perl piet.pl [options] inputImage<br>
   -p [int]:   Step Restraint (default: infinite)<br>
   -v [int]:   Invalid Color Handling (default: treat as white)<br>
               (1: terminate) (2: treat as black)<br>
+  -r:         Piet-to-Perl Translation (BETA)<br>
   inputImage: path of image<br>
   
 ie:<br>
-perl piet.pl -d ./Examples/hi.png<br>
+perl piet.pl -d -r ./Examples/hi.png<br>
 perl piet.pl -t -s 80 99bottles.png<br>
 perl piet.pl -p 100 -v 2 incomp.gif
 
@@ -39,11 +40,11 @@ Define Trace Output Codel Size (cmd parameter)<br>
 Define Codel Size of input image (cmd parameter)<br>
 Step Restraint option (cmd parameter)<br>
 Various Option Handling of Invalid Colors (cmd parameter)<br>
-Corner determination optimization: Credit: Mark Majcher
+Corner determination optimization: Credit: Mark Majcher<br>
+New in 0.97: Piet-to-Perl Translation (cmd parameter)(BETA)
 
 ### TODO
-White block infinite path termination (?)<br>
-More image formats (?)
+White block infinite path termination (?)
 
 ### License
 MIT License<br>
