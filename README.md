@@ -44,7 +44,6 @@ Corner determination optimization: Credit: Mark Majcher<br>
 New in 0.97: Piet-to-Perl Translation (cmd parameter)(BETA)
 
 ### TODO
-White block infinite path termination (?)
 
 ### License
 MIT License<br>

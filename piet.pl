@@ -39,6 +39,9 @@ my $toggle = 0;
 my $step = 0;
 my $dir;
 
+our $whiteCounter = 0;
+our @whiteList;
+
 my $im;
 our $tr;
 
@@ -121,10 +124,7 @@ if ($opt{d}) { print DEBUG "Colors Extracted: \n"; }
 
 # clean list
 sanitize($image);
-if ($opt{d}) {
-    print DEBUG "Colors Sanitized: \n";
-    #print DEBUG Dumper \@list;
-}
+if ($opt{d}) { print DEBUG "Colors Sanitized: \n"; }
 
 if ($opt{t}) {
     preparetrace($trace);
@@ -138,18 +138,7 @@ while ($count) {
     }
     
     # cannot escape codel block
-    if ($bail > 8) {
-        print "\nProgram Terminated: Exit Block\n";
-        
-        if ($opt{d}) {
-            print DEBUG "Program Terminated: Exit Block\n";
-            close (DEBUG);
-        }
-        if ($opt{t}) { endtrace($image); }
-        if ($opt{r}) { finishTrans(); }
-        
-        exit(0);
-    }
+    if ($bail > 8) { endProg($image, "Exit Block"); }
     
     @hold = ();
     @bound = ();
@@ -178,7 +167,10 @@ while ($count) {
         $bail++;
         next;
     } elsif (white($ny, $nx)) { # white codel detected - trace path
-        if ($opt{d}) { print DEBUG "White Path Trace\n"; }
+        if ($opt{d}) {
+            print DEBUG "White Path Trace\n";
+            print DEBUG "wC: $whiteCounter, s wL: " . scalar @whiteList . "\n";
+        }
         if ($opt{t}) {
             traceline($ty, $tx, $cy, $cx, $trace);
             tracedot($cy, $cx, $trace);
@@ -188,6 +180,15 @@ while ($count) {
             ($ty, $tx) = (-1, -1);
         }
         
+        # Check if counter equals whiteList length
+        if ($whiteCounter != 0 && $whiteCounter == scalar @whiteList) {
+            endProg($image, "Unescapable White Path");
+        }
+        
+        # process current codel
+        whiteListHelper($cy, $cx, $dir);
+        
+        if ($opt{d}) { printWhiteList(); }
         ($cy, $cx) = tracewhite($ny, $nx, $trace, $image);
     } else { # codel of interest - do a thing
         if ($opt{d}) { print DEBUG "($cy,$cx)=>($ny,$nx)\n"; }
@@ -202,6 +203,8 @@ while ($count) {
         decideop($cy, $cx, $ny, $nx, $trace);
         
         ($cy, $cx) = ($ny, $nx);
+        $whiteCounter = 0;
+        @whiteList = ();
         
         if ($opt{t}) { ($ty, $tx) = (-1, -1); }
         if ($opt{d}) { printStack(); }
@@ -216,16 +219,7 @@ while ($count) {
     if ($opt{p}) { $count--; }
 }
 
-if ($opt{d}) {
-    print DEBUG "Program Terminated: Exit Block\n";
-    close (DEBUG);
-}
-
-if ($opt{t}) { endtrace($image); }
-if ($opt{r}) { finishTrans(); }
-
-print "\nProgram Terminated: Step Escape\n";
-exit(0);
+endProg($image, "Step Escape");
 
 #==================SUBROUTINES==========================
 
@@ -306,16 +300,7 @@ sub sanitize {
             
             if (not exists $colors{$temp}) {
 				if ($opt{v} == 1) {
-                    print "\nProgram Terminated: Invalid Color Detected\n";
-                    
-                    if ($opt{d}) {
-                        print DEBUG "Program Terminated: Invalid Color Detected\n";
-                        close (DEBUG);
-                    }
-                    if ($opt{t}) { endtrace(basename($im));}
-                    if ($opt{r}) { finishTrans(); }
-                    
-                    exit(1);
+                    endProg($im, "Invalid Color Detected");
 				} elsif ($opt{v} == 2) {
                     $temp = "000000";
 				} else {
@@ -427,6 +412,59 @@ sub getcorners {
 }
 
 ##\
+ # Handles information pertaining to the whiteCounter and whiteList
+ # Increments the whiteCounter
+ # Or resets whiteCounter and adds codel to the whiteList
+ # 
+ # param: $y: y coordinate of codel
+ # param: $x: x coordinate of codel
+ # param: $d: direction of codel
+ #/
+sub whiteListHelper {
+    my ($y, $x, $d) = @_;
+    my $cWLT = sprintf("%d,%d,%s", $y, $x, $d);
+    
+    if (checkWhiteList($cWLT)) {
+        # increment counter
+        $whiteCounter++;
+    } else {
+        # codel not within whiteList
+        $whiteCounter = 0;
+        
+        addToWhiteList($cWLT);
+    }
+}
+
+##\
+ # Checks the White Traversal List for a particular codel
+ #
+ # param: $str: codel string to check
+ #
+ # return: boolean of inclusion in White Traversal List
+ #/
+sub checkWhiteList {
+    my ($str) = @_;
+    
+    foreach my $x (0 .. @whiteList - 1) {
+        if ($whiteList[$x] eq $str) { return 1; }
+    }
+    
+    return 0;
+}
+
+##\
+ # Adds a codel to the White Traversal List
+ #
+ # param: $str: codel string
+ #/
+sub addToWhiteList {
+    my ($str) = @_;
+    my $wLL = scalar @whiteList;
+    
+    $whiteList[$wLL] = $str;
+}
+
+##\
  # Recursively traces along white codels in a straight line
  # turns at boundary / obstacle
  #
@@ -441,25 +479,20 @@ sub tracewhite {
     my ($ny, $nx, $i, $im) = @_;
     my ($tmpy, $tmpx) = ($ny, $nx);
     my $dir = $dp[$dpval];
-    my $out = 0;
-    my $bail = 0;
     
-    while (!$out) {
+    # process first white codel
+    whiteListHelper($ny, $nx, $dir);
+    
+    if ($opt{d}) { printWhiteList(); }
+    
+    while (1) {
         $dir = $dp[$dpval];
         ($ny, $nx) = getnext($dir, $tmpy, $tmpx);
         
-        if ($opt{d}) { print DEBUG "current = ($ny,$nx)\n"; }
-        
-        # TODO - White path infinite termination
-        if ($bail) {
-            print "\nProgram Terminated: Unescapable White Path\n";
-            if ($opt{d}) {
-                print DEBUG "Program Terminated: Unescapable White Path\n";
-                close (DEBUG);
-            }
-            if ($opt{t}) { endtrace(basename($im));}
-            if ($opt{r}) { finishTrans(); }
-            exit(1);
+        if ($opt{d}) { print DEBUG "current = ($ny,$nx)\n"; print DEBUG "inTraceWhite - wC: $whiteCounter, s wL: " . scalar @whiteList . "\n"; }
+        # Check if counter equals whiteList length
+        if ($whiteCounter != 0 && $whiteCounter == scalar @whiteList) {
+            endProg($image, "Unescapable White Path");
         }
         
         if (!valid($ny, $nx)) {  # next codel is not valid (boundary / obstacle)
@@ -474,9 +507,10 @@ sub tracewhite {
             if ($opt{d}) { print DEBUG "keep going\n"; }
             
             ($tmpy, $tmpx) = ($ny, $nx);
-        } else { # Codel of interest
-            $out = 1;
             
+            # process next codel in path
+            whiteListHelper($ny, $nx, $dir);
+        } else { # Codel of interest
             if ($opt{d}) { print DEBUG "found what we want\n"; }
             if ($opt{t}) {
                 tracedot($tmpy, $tmpx, $i);
@@ -484,7 +518,10 @@ sub tracewhite {
                 traceline($tmpy, $tmpx, $ny, $nx, $i);
                 traceop($tmpy, $tmpx, $ny, $nx, $i, "no-op");
             }
+            last;
         }
+        
+        if ($opt{d}) { printWhiteList(); }
     }
     
     return ($ny, $nx);
@@ -847,6 +884,10 @@ sub blockhelper {
     return @out;
 }
 
+##\
+ # Prints Stack contents in array bound style
+ # -d usage only
+ #/
 sub printStack {
     printf DEBUG "Stack: (%d values): ", scalar @stack;
     print DEBUG "[ ";
@@ -854,6 +895,21 @@ sub printStack {
     print DEBUG "]\n";
 }
 
+##\
+ # Prints WhiteList contents in array bound style
+ # -d usage only
+ #/
+sub printWhiteList {
+    printf DEBUG "WhiteList: (%d values): ", scalar @whiteList;
+    print DEBUG "[ ";
+        for my $i (@whiteList) { print DEBUG "$i "; }
+    print DEBUG "]\n";
+}
+
+##\
+ # Prints Corners in style
+ # -d usage only
+ #/
 sub printCorners {
     print DEBUG "Corners:\n";
     for my $i (keys %codels) {
@@ -1275,6 +1331,27 @@ sub finishTrans {
 
     for (0 .. 14) { if ($subrout[$_]) { print PERL $sbus[$_]; } }
     close (PERL);
+}
+
+##\
+ # Helper function to terminate program execution
+ #
+ # param: $image: trace image if selected
+ # param: $str: termination string
+ #/
+sub endProg {
+    my ($image, $str) = @_;
+    $str = "Program Terminated: " . $str;
+    print "\n$str\n";
+    
+    if ($opt{d}) {
+        print DEBUG "$str\n";
+        close (DEBUG);
+    }
+    if ($opt{t}) { endtrace($image); }
+    if ($opt{r}) { finishTrans(); }
+    
+    exit(0);
 }
 
 #----------------------------
